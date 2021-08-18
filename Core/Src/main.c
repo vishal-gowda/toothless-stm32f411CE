@@ -45,8 +45,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-
 I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
@@ -63,13 +61,10 @@ float pid_i_gain_pitch = pid_i_gain_roll;  //Gain setting for the pitch I-contro
 float pid_d_gain_pitch = pid_d_gain_roll;  //Gain setting for the pitch D-controller.
 int16_t pid_max_pitch = pid_max_roll;          //Maximum output of the PID-controller (+/-).
 
-float pid_p_gain_yaw = 4.0;                //Gain setting for the pitch P-controller (default = 4.0).
+float pid_p_gain_yaw = 3.0;                //Gain setting for the pitch P-controller (default = 4.0).
 float pid_i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller (default = 0.02).
 float pid_d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller (default = 0.0).
 int16_t pid_max_yaw = 400;                     //Maximum output of the PID-controller (+/-).
-
-
-volatile uint32_t us;
 
 int16_t channel_1_start = 0;
 int16_t channel_1 = 0;
@@ -105,7 +100,6 @@ static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM4_Init(void);
-static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -200,7 +194,6 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM4_Init();
   MX_USB_DEVICE_Init();
-  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
@@ -212,7 +205,6 @@ int main(void)
 	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
 
-	HAL_ADC_Start(&hadc1);
 	HAL_Delay(5000);
 	gyro_setup(&hi2c2);
 	HAL_GPIO_WritePin(led_GPIO_Port, led_Pin, GPIO_PIN_RESET);
@@ -254,8 +246,8 @@ int main(void)
 		}
 
 		//Place the MPU-6050 spirit level and note the values in the following two lines for calibration.
-		angle_pitch_acc -= 0.77; 														 //Accelerometer calibration value for pitch.
-		angle_roll_acc -= 1.33;    														 //Accelerometer calibration value for roll.
+		angle_pitch_acc -= 1.01; 														 //Accelerometer calibration value for pitch.
+		angle_roll_acc -= 2.11;    														 //Accelerometer calibration value for roll.
 
 		angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;                   //Correct the drift of the gyro pitch angle with the accelerometer pitch angle.
 		angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;                      //Correct the drift of the gyro roll angle with the accelerometer roll angle.
@@ -325,7 +317,7 @@ int main(void)
 		//The battery voltage is needed for compensation.
 		//A complementary filter is used to reduce noise.
 		//1410.1 = 112.81 / 0.08.
-		battery_voltage = battery_voltage * 0.92 + ((float)HAL_ADC_GetValue(&hadc1)/ 1410.1);
+		//battery_voltage = battery_voltage * 0.92 + ((float)HAL_ADC_GetValue(&hadc1)/ 1410.1);
 
 		//Turn on the led if battery voltage is to low. In this case under 10.0V
 		//if (battery_voltage < 10.0 && error == 0)//TODO:Vishal
@@ -428,56 +420,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC1_Init(void)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-  */
-  sConfig.Channel = ADC_CHANNEL_4;
-  sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
 }
 
 /**
@@ -733,10 +675,10 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
-	__disable_irq();
+	//__disable_irq();
 	while (1) {
 		HAL_GPIO_TogglePin(led_GPIO_Port, led_Pin);
-		HAL_Delay(100);
+		HAL_Delay(1000);
 	}
   /* USER CODE END Error_Handler_Debug */
 }
